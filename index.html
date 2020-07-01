@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>webworker</title>
+    <style>
+      body {
+        background: #333;
+        margin: 0;
+        padding: 0;
+      }
+
+      ul {
+        font-size: 30px;
+        list-style: none;
+        position: absolute;
+        left: 50px;
+        top: 300px;
+      }
+
+      ul > li {
+        float: left;
+      }
+
+      #content {
+        width: 100%;
+        height: 800px;
+        text-align: center;
+        background: #888;
+      }
+
+      canvas {
+        background: #fff;
+        text-align: center;
+        margin: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="content">
+      <canvas id="print" width="1200" height="800">
+        <span>您的浏览器不支持画布！</span>
+      </canvas>
+    </div>
+    <script>
+      window.onload = function () {
+        var oc = document.getElementById('print')
+        var ogc = oc.getContext('2d')
+
+        ogc.fillStyle = '#fc6423'
+        ogc.strokeStyle = '#222'
+
+        //-------------------------------------------获取像素
+        //ogc.fillRect(100,100,600,600);
+        //var area = ogc.getImageData(100,100,50,50);
+        //alert(area.width);  //一行的像素个数
+        // console.log(area.data);
+        //area.data是一个数组，包含了区域内所有像素点rgba的四个值，其长度为：像素个数*4。
+        //每个像素点的四个值均为0~255之间,理论上可以通过控制area的每个像素点的rgba来绘制任何图片
+
+        //-----------------------------------------设置或添加像素
+        // ogc.putImageData(area,0,0);
+        //-----------------------------------------像素操作
+
+        var ali = document.getElementsByTagName('li')
+
+        for (var i = 0; i < ali.length; i++) {
+          ali[i].onclick = function () {
+            console.time(1)
+            //--------------------------------------开始计时
+            ogc.clearRect(0, 0, oc.width, oc.height)
+            ogc.save()
+            var h = 300
+            var str = this.innerHTML
+            ogc.font = h * 0.85 + 'px impact'
+            ogc.textBaseline = 'top'
+            var w = ogc.measureText(str).width
+            ogc.fillText(str, (oc.width - w) / 2, (oc.height - h) / 2)
+            var allarea = ogc.getImageData(
+              (oc.width - w) / 2,
+              (oc.height - h) / 2,
+              w,
+              h,
+            )
+
+            ogc.clearRect(0, 0, oc.width, oc.height)
+            var newarea = ogc.createImageData(w, h)
+            // var allarr = suiji(w * h, w * h / 10);
+            //---------------------------------------这里开一个webworker
+            var worker = new Worker('cutarr.js')
+            worker.postMessage(w * h)
+            worker.onmessage = function (ev) {
+              var allarr = ev.data
+              var inow = 0
+              var timer = null
+              timer = setInterval(function () {
+                for (var i = 0; i < allarr[inow].length; i++) {
+                  newarea.data[allarr[inow][i] * 4] =
+                    allarea.data[allarr[inow][i] * 4]
+                  newarea.data[allarr[inow][i] * 4 + 1] =
+                    allarea.data[allarr[inow][i] * 4 + 1]
+                  newarea.data[allarr[inow][i] * 4 + 2] =
+                    allarea.data[allarr[inow][i] * 4 + 2]
+                  newarea.data[allarr[inow][i] * 4 + 3] =
+                    allarea.data[allarr[inow][i] * 4 + 3]
+                }
+                ogc.putImageData(
+                  newarea,
+                  (oc.width - w) / 2,
+                  (oc.height - h) / 2,
+                )
+                if (inow == 9) {
+                  inow = 0
+                  clearInterval(timer)
+                }
+                inow++
+              }, 150)
+              ogc.restore()
+            }
+
+            console.timeEnd(1)
+            console.log('-------------')
+            //--------------------------------------结束计时
+          }
+        }
+      }
+    </script>
+    <ul>
+      <li>像</li>
+      <li>素</li>
+      <li>显</li>
+      <li>字</li>
+    </ul>
+  </body>
+</html>
